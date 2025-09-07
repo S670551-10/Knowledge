@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="mr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Knowverse - ज्ञानविश्व</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Source+Serif+Pro:wght@400;700&display=swap');
+
+        :root {
+            --bg-color: #f8f9fa;
+            --surface-color: #ffffff;
+            --primary-text: #212529;
+            --secondary-text: #6c757d;
+            --accent-color: #007bff;
+            --accent-hover: #0056b3;
+            --border-color: #dee2e6;
+            --shadow-light: rgba(0, 0, 0, 0.05);
+            --shadow-medium: rgba(0, 0, 0, 0.1);
+        }
+
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--primary-text);
+            line-height: 1.7;
+            overflow-x: hidden;
+        }
+        
+        /* Loading Overlay */
+        #loading-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: var(--surface-color);
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            z-index: 10000; transition: opacity 0.5s ease;
+        }
+        #loading-overlay.hidden { opacity: 0; pointer-events: none; }
+        .spinner {
+            width: 50px; height: 50px; border: 5px solid #e9ecef;
+            border-top-color: var(--accent-color); border-radius: 50%;
+            animation: spin 1s linear infinite; margin-bottom: 20px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        #loading-overlay p { font-size: 1.1em; color: var(--secondary-text); }
+        #loading-overlay button {
+            margin-top: 20px; padding: 10px 25px; background-color: var(--accent-color);
+            color: white; border: none; border-radius: 50px; cursor: pointer; font-weight: 600;
+            transition: background-color 0.2s ease, transform 0.2s ease;
+        }
+        #loading-overlay button:hover { background-color: var(--accent-hover); transform: scale(1.05); }
+
+        /* Scroll Progress Bar */
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 5px;
+            background: linear-gradient(90deg, #007bff, #00d4ff);
+            width: 0%; z-index: 9999;
+            transition: opacity 0.3s ease;
+        }
+        
+        /* Page Header */
+        .page-header {
+            background-color: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(10px);
+            padding: 0 5%; width: 100%; height: 70px;
+            box-shadow: 0 1px 3px var(--shadow-light);
+            border-bottom: 1px solid var(--border-color);
+            position: sticky; top: 0; z-index: 1000;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .logo { width: 45px; height: 45px; border-radius: 50%; }
+        .page-header h1 { font-size: 1.5rem; font-weight: 700; color: var(--primary-text); }
+        #settings-btn {
+            background: none; border: none; cursor: pointer; padding: 8px; border-radius: 50%;
+            transition: background-color 0.2s ease;
+        }
+        #settings-btn svg { width: 24px; height: 24px; fill: var(--secondary-text); transition: transform 0.3s ease, fill 0.2s ease; }
+        #settings-btn:hover { background-color: #e9ecef; }
+        #settings-btn:hover svg { transform: rotate(45deg); fill: var(--primary-text); }
+
+        /* Main Container & Screens */
+        .container {
+            width: 100%; max-width: 960px; margin: 0 auto;
+            padding: 50px 20px; position: relative;
+            min-height: calc(100vh - 70px - 100px); /* Header & Footer */
+        }
+        .page-screen {
+            display: none; opacity: 0;
+            animation: fadeIn 0.6s ease forwards;
+        }
+        .page-screen.visible { display: block; }
+        #content-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: var(--bg-color); z-index: 2000;
+            overflow-y: auto; transform: translateY(100%);
+            transition: transform 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+        #content-screen.visible { transform: translateY(0); }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+
+        .section-title {
+            font-size: 2.2rem; font-weight: 700; color: var(--primary-text);
+            margin-bottom: 30px; position: relative; padding-bottom: 10px;
+        }
+        .section-title::after {
+            content: ''; position: absolute; left: 0; bottom: 0;
+            width: 50px; height: 4px; background-color: var(--accent-color);
+            border-radius: 2px;
+        }
+
+        .articles-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 30px;
+        }
+        .article-card {
+            background-color: var(--surface-color); border: 1px solid var(--border-color);
+            border-radius: 12px; box-shadow: 0 4px 12px var(--shadow-light);
+            cursor: pointer; transition: transform 0.3s ease, box-shadow 0.3s ease;
+            display: flex; flex-direction: column;
+            /* Staggered animation */
+            opacity: 0; transform: translateY(20px);
+            animation: fadeIn 0.5s ease forwards;
+        }
+        .article-card:hover {
+            transform: translateY(-8px); box-shadow: 0 8px 25px var(--shadow-medium);
+        }
+        .card-content { padding: 25px; flex-grow: 1; }
+        .card-title { font-size: 1.2rem; font-weight: 600; margin-bottom: 10px; }
+        .card-snippet { font-size: 0.95rem; color: var(--secondary-text); line-height: 1.6; }
+        .view-all-link {
+            display: inline-block; text-align: center; margin-top: 40px;
+            padding: 12px 30px; background-color: var(--accent-color);
+            color: white; border-radius: 50px; text-decoration: none;
+            font-weight: 600; transition: background-color 0.2s ease, transform 0.2s ease;
+        }
+        .view-all-link:hover { background-color: var(--accent-hover); transform: scale(1.05); }
+
+        hr.separator {
+            border: 0; height: 1px; background-color: var(--border-color); margin: 60px 0;
+        }
+
+        /* Content Screen Specific */
+        #content-container {
+            max-width: 800px; margin: 0 auto; padding: 80px 20px 50px;
+        }
+        #content-back-btn {
+            position: fixed; top: 20px; left: 20px;
+            background: var(--surface-color); border: 1px solid var(--border-color);
+            border-radius: 50%; cursor: pointer; width: 45px; height: 45px;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 2px 8px var(--shadow-light); z-index: 10;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        #content-back-btn:hover { transform: scale(1.1); box-shadow: 0 4px 12px var(--shadow-medium); }
+        #content-back-btn svg { width: 24px; height: 24px; fill: var(--primary-text); }
+        #content-title {
+            font-family: 'Source Serif Pro', serif; font-size: 2.8rem; font-weight: 700;
+            margin-bottom: 30px; line-height: 1.3; color: var(--primary-text);
+        }
+        #content-body {
+            font-family: 'Source Serif Pro', serif; font-size: 1.2rem;
+            line-height: 1.9; color: #343a40; white-space: pre-wrap;
+        }
+        #content-body strong { color: #000000; font-weight: 700; }
+
+        /* Footer */
+        .page-footer {
+            text-align: center; padding: 30px 20px; font-size: 0.9rem;
+            color: var(--secondary-text); background-color: #e9ecef;
+            width: 100%; border-top: 1px solid var(--border-color);
+        }
+
+        .loading-text { text-align: center; color: var(--secondary-text); padding: 20px; }
+
+        @media (max-width: 768px) {
+            .section-title { font-size: 1.8rem; }
+            #content-title { font-size: 2.2rem; }
+            #content-body { font-size: 1.1rem; }
+            #content-container { padding-top: 90px; }
+        }
+        @media (max-width: 480px) {
+            .page-header h1 { font-size: 1.3rem; }
+            .container { padding: 30px 15px; }
+            .articles-grid { grid-template-columns: 1fr; }
+            #content-title { font-size: 1.8rem; }
+            #content-body { font-size: 1.05rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loading-overlay">
+        <div class="spinner"></div>
+        <p>ज्ञानविश्व लोड होत आहे...</p>
+        <button id="retry-load-btn" style="display:none;">पुन्हा प्रयत्न करा</button>
+    </div>
+
+    <div id="progress-bar"></div>
+
+    <header class="page-header">
+        <div class="header-left">
+            <img src="https://i.imgur.com/u1mJ2a7.png" alt="logo" class="logo">
+            <h1>ज्ञानविश्व</h1>
+        </div>
+        <button id="settings-btn" aria-label="Settings">
+             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24"><path fill="none" d="M0 0h24v24H0z"/><path d="M12 1.993C6.477 1.993 2 6.471 2 11.995c0 5.524 4.477 10.002 10 10.002 5.523 0 10-4.478 10-10.002C22 6.471 17.523 1.993 12 1.993zm0 18.004c-4.418 0-8-3.58 -8-8.002 0-4.42 3.582-8.002 8-8.002s8 3.582 8 8.002c0 4.422-3.582 8.002-8 8.002zM12 11a1 1 0 1 1 0-2 1 1 0 0 1 0 2zm0-4a1 1 0 1 1 0-2 1 1 0 0 1 0 2zm0 8a1 1 0 1 1 0-2 1 1 0 0 1 0 2z"/></svg>
+        </button>
+    </header>
+
+    <main class="container"> 
+        <!-- Main List View Screen -->
+        <div id="list-view-screen" class="page-screen visible">
+            <h2 class="section-title">नवीन लेख</h2>
+            <div class="articles-grid" id="new-items-list">
+                <p class="loading-text">नवीन लेख लोड होत आहेत...</p>
+            </div>
+
+            <hr class="separator">
+
+            <h2 class="section-title">सर्व लेख</h2>
+            <div class="articles-grid" id="preview-all-articles-list">
+                 <p class="loading-text">लेख लोड होत आहेत...</p>
+            </div>
+            <a href="#" id="view-all-btn" class="view-all-link" style="display: none;">सर्व लेख पहा</a>
+        </div>
+
+        <!-- All Articles Screen -->
+        <div id="all-items-screen" class="page-screen">
+             <h2 class="section-title">सर्व लेख</h2>
+             <div class="articles-grid" id="full-all-articles-list"></div>
+             <!-- A back button can be dynamically added here or rely on browser back -->
+        </div>
+    </main>
+
+    <!-- Content Screen (Modal-like) -->
+    <div id="content-screen">
+        <button id="content-back-btn" aria-label="मागे जा">
+            <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+        </button>
+        <div id="content-container">
+            <h2 id="content-title"></h2>
+            <div id="content-body"></div>
+        </div>
+    </div>
+    
+    <footer class="page-footer"> 
+        <p>नवीन माहिती दररोज संध्याकाळी ७ वाजता उपलब्ध होईल.</p>
+        <p>© Knowverse. सर्व हक्क राखीव.</p>
+    </footer>
+
+  <script>
+    // --- CONFIGURATION ---
+    const sheetUrl = 'https://docs.google.com/spreadsheets/d/1DpMc4xlj5ENFrTT69XhAuBJbFYS5xMLJ27zVrn5Clqo/export?format=csv';
+    const telegramChannelLink = 'https://t.me/informationuniverse10';
+    const TITLE_COLUMN_NAME = 'Title'; 
+    const CONTENT_COLUMN_NAME = 'Content';
+    const STATUS_COLUMN_NAME = 'Status';
+    const CATEGORY_COLUMN_NAME = 'Category';
+    const ALL_ARTICLES_PREVIEW_LIMIT = 3;
+    const SNIPPET_LENGTH = 120; // Character limit for card snippet
+
+    // --- DOM ELEMENTS ---
+    const loadingOverlay = document.getElementById('loading-overlay');
+    const retryLoadBtn = document.getElementById('retry-load-btn');
+    const mainContainer = document.querySelector('.container');
+    const footerElement = document.querySelector('.page-footer');
+    const settingsBtn = document.getElementById('settings-btn');
+    const progressBar = document.getElementById('progress-bar');
+
+    const listViewScreen = document.getElementById('list-view-screen');
+    const newItemsListEl = document.getElementById('new-items-list');
+    const previewAllArticlesListEl = document.getElementById('preview-all-articles-list');
+    const viewAllBtn = document.getElementById('view-all-btn');
+
+    const allItemsScreen = document.getElementById('all-items-screen');
+    const fullAllArticlesListEl = document.getElementById('full-all-articles-list');
+
+    const contentScreen = document.getElementById('content-screen');
+    const contentContainer = document.getElementById('content-container');
+    const contentTitleEl = document.getElementById('content-title');
+    const contentBodyEl = document.getElementById('content-body');
+    const contentBackBtn = document.getElementById('content-back-btn');
+
+    // --- STATE ---
+    let allData = [];
+    let currentScreen = 'list';
+
+    // --- INITIALIZATION ---
+    document.addEventListener('DOMContentLoaded', initApp);
+
+    function initApp() {
+        showLoading();
+        fetchData();
+        history.replaceState({ screen: 'list' }, "Knowverse", window.location.pathname);
+    }
+
+    // --- EVENT LISTENERS ---
+    retryLoadBtn.addEventListener('click', fetchData);
+    settingsBtn.addEventListener('click', () => window.open(telegramChannelLink, '_blank'));
+    viewAllBtn.addEventListener('click', (e) => { e.preventDefault(); navigateTo('all_articles'); });
+    contentBackBtn.addEventListener('click', () => history.back());
+    window.addEventListener('popstate', handlePopState);
+    contentScreen.addEventListener('scroll', updateProgressBar);
+    
+    // --- CORE LOGIC ---
+    function fetchData() {
+        showLoading();
+        fetch(sheetUrl)
+            .then(res => res.ok ? res.text() : Promise.reject(res))
+            .then(csvText => {
+                allData = parseCSVData(csvText).reverse(); // Newest first
+                renderScreen('list');
+                hideLoading();
+            })
+            .catch(err => {
+                console.error('Fetch Error:', err);
+                showLoadingError('माहिती लोड करताना समस्या आली.');
+            });
+    }
+
+    function parseCSVData(csvText) {
+        const rows = parseCSV(csvText);
+        if (rows.length <= 1) return [];
+
+        const headers = rows[0].map(h => h.trim());
+        const required = {
+            title: headers.indexOf(TITLE_COLUMN_NAME),
+            content: headers.indexOf(CONTENT_COLUMN_NAME),
+            status: headers.indexOf(STATUS_COLUMN_NAME),
+            category: headers.indexOf(CATEGORY_COLUMN_NAME)
+        };
+
+        if (required.title === -1 || required.content === -1) {
+            throw new Error("Required columns 'Title' or 'Content' not found.");
+        }
+
+        return rows.slice(1).map((row, index) => {
+            const title = (row[required.title] || '').trim();
+            const content = row[required.content] || '';
+            if (!title || !content) return null;
+
+            return {
+                id: `item_${index + 1}`,
+                title,
+                content,
+                status: (row[required.status] || '').trim().toLowerCase(),
+                category: (row[required.category] || '').trim().toLowerCase()
+            };
+        }).filter(Boolean); // Filter out null items
+    }
+
+    // --- UI & RENDERING ---
+    function renderScreen(screenName, itemId = null) {
+        currentScreen = screenName;
+        document.querySelectorAll('.page-screen').forEach(s => s.classList.remove('visible'));
+        footerElement.style.display = 'block';
+        
+        if (screenName === 'list') {
+            listViewScreen.classList.add('visible');
+            renderListView();
+        } else if (screenName === 'all_articles') {
+            allItemsScreen.classList.add('visible');
+            renderAllArticlesListScreen();
+        } else if (screenName === 'content' && itemId) {
+            renderContentScreen(itemId);
+            footerElement.style.display = 'none'; // Hide footer for content
+        }
+    }
+
+    function renderListView() {
+        const newItems = allData.filter(item => item.status === 'new');
+        const allItems = allData.filter(item => item.category === 'all');
+        
+        populateGrid(newItemsListEl, newItems, 'सध्या कोणतेही नवीन लेख नाहीत.');
+        populateGrid(previewAllArticlesListEl, allItems.slice(0, ALL_ARTICLES_PREVIEW_LIMIT), 'कोणतेही लेख उपलब्ध नाहीत.');
+
+        viewAllBtn.style.display = allItems.length > ALL_ARTICLES_PREVIEW_LIMIT ? 'inline-block' : 'none';
+    }
+
+    function renderAllArticlesListScreen() {
+        const allItems = allData.filter(item => item.category === 'all');
+        populateGrid(fullAllArticlesListEl, allItems, 'या विभागात लेख सापडले नाहीत.');
+    }
+    
+    function renderContentScreen(itemId) {
+        const item = allData.find(d => d.id === itemId);
+        if (!item) {
+            history.back(); // Or show a 'not found' message
+            return;
+        }
+        contentTitleEl.textContent = item.title;
+        contentBodyEl.innerHTML = formatContentForDisplay(item.content);
+        contentScreen.classList.add('visible');
+        contentScreen.scrollTop = 0;
+        updateProgressBar(); // Set initial progress
+    }
+    
+    function populateGrid(element, items, emptyMessage) {
+        element.innerHTML = '';
+        if (items.length === 0) {
+            element.innerHTML = `<p class="loading-text">${emptyMessage}</p>`;
+            return;
+        }
+        items.forEach((item, index) => {
+            const card = createArticleCard(item);
+            card.style.animationDelay = `${index * 100}ms`; // Staggered animation
+            element.appendChild(card);
+        });
+    }
+
+    function createArticleCard(item) {
+        const card = document.createElement('div');
+        card.className = 'article-card';
+        card.onclick = () => navigateTo('content', item.id);
+        card.innerHTML = `
+            <div class="card-content">
+                <h4 class="card-title">${item.title}</h4>
+                <p class="card-snippet">${createSnippet(item.content)}</p>
+            </div>`;
+        return card;
+    }
+    
+    // --- NAVIGATION & HISTORY ---
+    function navigateTo(screen, itemId = null) {
+        const state = { screen, itemId };
+        let url = `#${screen}`;
+        if (itemId) url += `/${itemId}`;
+        history.pushState(state, '', url);
+        renderScreen(screen, itemId);
+    }
+    
+    function handlePopState(event) {
+        const state = event.state || { screen: 'list' };
+        renderScreen(state.screen, state.itemId);
+        if (state.screen !== 'content') {
+            contentScreen.classList.remove('visible');
+        }
+    }
+
+    // --- UTILITIES ---
+    function showLoading() { loadingOverlay.classList.remove('hidden'); }
+    function hideLoading() { loadingOverlay.classList.add('hidden'); }
+    function showLoadingError(message) {
+        loadingOverlay.querySelector('p').textContent = message;
+        retryLoadBtn.style.display = 'block';
+    }
+
+    function updateProgressBar() {
+        const { scrollTop, scrollHeight, clientHeight } = contentScreen;
+        const scrollPercent = (scrollTop / (scrollHeight - clientHeight)) * 100;
+        progressBar.style.width = `${scrollPercent}%`;
+    }
+
+    function createSnippet(rawContent) {
+        let cleanText = rawContent.replace(/--|\n|\*\*/g, ' ').replace(/\s+/g, ' ');
+        return cleanText.length > SNIPPET_LENGTH ? `${cleanText.substring(0, SNIPPET_LENGTH)}...` : cleanText;
+    }
+
+    function formatContentForDisplay(rawContent) {
+        return rawContent
+            .replace(/--/g, '\n\n')
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    }
+
+    function parseCSV(str) {
+        const rows = []; let quote = false; let cell = ''; let row = [];
+        const normalizedStr = str.replace(/\r\n/g, '\n').replace(/\r/g, '\n'); 
+        for (let i = 0; i < normalizedStr.length; i++) {
+            const c = normalizedStr[i], next = normalizedStr[i + 1];
+            if (c === '"' && quote && next === '"') { cell += '"'; i++; } 
+            else if (c === '"') { quote = !quote; } 
+            else if (c === ',' && !quote) { row.push(cell); cell = ''; } 
+            else if (c === '\n' && !quote) { row.push(cell); rows.push(row); cell = ''; row = []; } 
+            else { cell += c; }
+        }
+        if (cell || row.length > 0) { row.push(cell); rows.push(row); }
+        return rows.filter(r => r.length > 0 && r.some(c => c.trim()));
+    }
+  </script>
+
+</body>
+</html>
